@@ -702,7 +702,8 @@ class CameraWidget(QtGui.QWidget):
         else:
             pass
 
-        hdu = fits.PrimaryHDU()  # initialize fits object
+        hdu = fits.HDUList()  # initialize fits object
+
         filename = QtGui.QFileDialog.getSaveFileName(self, 'Save as..', self.save_dir)
         self.save_dir = os.path.dirname(filename)
         print(filename)
@@ -720,10 +721,12 @@ class CameraWidget(QtGui.QWidget):
             return
         self.measurement_status.setText('Exporting to FITS file')
         for i in range(num_of_frames):
-            file = filename + "_%04d"%(i,)+'.fits'
-            hdu.data = record_data[i]/4  # :4 to make it 14 bit
+            #file = filename + "_%04d"%(i,)+'.fits'
+            hdu.append(fits.ImageHDU(data=record_data[i]/4)) # :4 to make it 14 bit
             # other header details will come in here
-            hdu.writeto(file)
+        hdu[0].header['Exp. time'] = "%i %s"%(self.t, self.time_units.CurrentText())
+        hdu.writeto(filename+'.fits')
+
 
         self.measurement_status.setText('Recording finished.')
         self.stop_callback()
