@@ -714,11 +714,13 @@ class CameraWidget(QtGui.QWidget):
         except ValueError:
             return
         self.measurement_status.setText('Recording %d frames..'%num_of_frames)
-        time.sleep(1)
-        record_data = self.camera.record_to_memory(num_of_frames)
-        if record_data is None:
-            self.stop_callback()
-            return
+        record_data = []
+        for j in range(num_of_frames):
+            data = np.average(self.camera.record_to_memory(10), axis=0)
+            if record_data is None:
+                self.stop_callback()
+                return
+            record_data.append(data)
         self.measurement_status.setText('Exporting to FITS file')
         for i in range(num_of_frames):
             #file = filename + "_%04d"%(i,)+'.fits'
@@ -750,6 +752,7 @@ class CameraWidget(QtGui.QWidget):
         # disarm camera
         self.camera.disarm_camera()
         self.display_status.setText('Idle')
+        self.measurement_status.setText('')
         return
 
 if __name__ == '__main__':
