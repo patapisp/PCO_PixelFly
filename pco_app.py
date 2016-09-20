@@ -1,6 +1,6 @@
 __author__ = 'Polychronis Patapis'
 from PyQt4 import QtGui
-from QtGUI.core.pco_gui import CameraWidget
+from core.pco_gui import CameraWidget
 import sys
 
 if __name__ == "__main__":

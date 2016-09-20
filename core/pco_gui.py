@@ -237,6 +237,7 @@ class CameraWidget(QtGui.QWidget):
         reset_btn.clicked.connect(self.refresh_image)
         # checkbox enabling log scale
         self.log_scale = QtGui.QCheckBox("Log scale")
+        self.log_scale.stateChanged.connect(self.log_scale_callback)
 
         self.widget_layout.addWidget(self.gw, 0, 0, 6, 8)
         self.widget_layout.addWidget(self.gw_crosscut, 6, 3, 2, 6)
@@ -330,6 +331,14 @@ class CameraWidget(QtGui.QWidget):
         self.statusbar.addPermanentWidget(self.mouse_pos)
         MainWindow.setStatusBar(self.statusbar)
 
+    def log_scale_callback(self):
+        if self.log_scale.isChecked():
+            self.image.setLevels([np.log(200), np.log(16383)])
+            self.hist.setHistogramRange(np.log(200), np.log(16383))
+        else:
+            self.image.setLevels([200, 16383])
+            self.hist.setHistogramRange(200, 16383)
+        return
 
     def refresh_image(self):
         """
@@ -724,16 +733,16 @@ class CameraWidget(QtGui.QWidget):
             return
         self.measurement_status.setText('Recording %d frames..'%num_of_frames)
         record_data = []
-        for j in range(num_of_frames):
-            data = np.average(self.camera.record_to_memory(10), axis=0)/4  # :4 to make it 14 bit
-            if record_data is None:
-                self.stop_callback()
-                return
-            record_data.append(data)
+        record_data = self.camera.record_to_memory(10)/4  # :4 to make it 14 bit
+
+        if record_data == []:
+            self.stop_callback()
+            return
+
         self.measurement_status.setText('Exporting to FITS file')
         hdu.append(fits.PrimaryHDU(data=record_data))
         # other header details will come in here
-        hdu[0].header['Exp. time'] = "%i %s"%(self.t, self.time_units.CurrentText())
+        hdu[0].header['EXP TIME'] = "%i %s" % (self.t, self.time_units.currentText())
         hdu.writeto(filename+'.fits')
         self.measurement_status.setText('Recording finished.')
         self.stop_callback()
