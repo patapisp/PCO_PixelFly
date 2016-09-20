@@ -235,11 +235,15 @@ class CameraWidget(QtGui.QWidget):
         shortcut.activated.connect(self.refresh_image)
         reset_btn = QtGui.QPushButton('Reset zoom')
         reset_btn.clicked.connect(self.refresh_image)
+        # checkbox enabling log scale
+        self.log_scale = QtGui.QCheckBox("Log scale")
+
         self.widget_layout.addWidget(self.gw, 0, 0, 6, 8)
         self.widget_layout.addWidget(self.gw_crosscut, 6, 3, 2, 6)
         self.widget_layout.addItem(self.controls_layout, 1, 8)
         self.widget_layout.addItem(self.indicators_layout, 7, 0, 2, 6)
         self.indicators_layout.addWidget(reset_btn, 2, 6, 1, 1)
+        self.indicators_layout.addWidget(self.log_scale, 2, 7, 1, 1)
         # Indicator showing maxvalue of image being displayed
         self.max_indicator_lab = QtGui.QLabel('Max value')
         font = QtGui.QFont("Calibri", 18)
@@ -325,6 +329,7 @@ class CameraWidget(QtGui.QWidget):
         self.statusbar.addPermanentWidget(self.mouse_pos_lab)
         self.statusbar.addPermanentWidget(self.mouse_pos)
         MainWindow.setStatusBar(self.statusbar)
+
 
     def refresh_image(self):
         """
@@ -642,7 +647,11 @@ class CameraWidget(QtGui.QWidget):
         try:
             # get newest frame from queue. Transpose it so that is fits the coordinates convention
             im = self.camera.q.get().T
-            self.im = im
+            # check for log scale display
+            if self.log_scale.isChecked():
+                self.im = np.log(im)
+            else:
+                self.im = im
             try:
                 # get max value from queue
                 max_val = self.camera.q_m.get()
@@ -661,11 +670,11 @@ class CameraWidget(QtGui.QWidget):
             if self.line_roi.alive:
                 self.line_roi_value()
             # mouse position value update
-            """
+
             if 0 <= self.x <= 1392 and 0 <= self.y <= 1040:
                 val = im[self.x, self.y]
                 self.mouse_pos.setText('%i , %i : %.1f'%(self.x, self.y, val))
-            """
+            
             # update image. Don't know if this is necessary..
             self.image.update()
         except Empty:
@@ -716,20 +725,16 @@ class CameraWidget(QtGui.QWidget):
         self.measurement_status.setText('Recording %d frames..'%num_of_frames)
         record_data = []
         for j in range(num_of_frames):
-            data = np.average(self.camera.record_to_memory(10), axis=0)
+            data = np.average(self.camera.record_to_memory(10), axis=0)/4  # :4 to make it 14 bit
             if record_data is None:
                 self.stop_callback()
                 return
             record_data.append(data)
         self.measurement_status.setText('Exporting to FITS file')
-        for i in range(num_of_frames):
-            #file = filename + "_%04d"%(i,)+'.fits'
-            hdu.append(fits.ImageHDU(data=record_data[i]/4)) # :4 to make it 14 bit
-            # other header details will come in here
+        hdu.append(fits.PrimaryHDU(data=record_data))
+        # other header details will come in here
         hdu[0].header['Exp. time'] = "%i %s"%(self.t, self.time_units.CurrentText())
         hdu.writeto(filename+'.fits')
-
-
         self.measurement_status.setText('Recording finished.')
         self.stop_callback()
         return None

@@ -61,7 +61,6 @@ class PixelFly(object):
         :return:True if success and False if unaible to open camera or
         some error occured.
         """
-        
 
         # opencamera is the instance of OpenCamera method in DLL
         opencamera = self.PixFlyDLL.PCO_OpenCamera
@@ -278,7 +277,7 @@ class PixelFly(object):
 
     def allocate_buffer(self, num_buffers=2):
         """
-
+        Allocate buffers for image grabbing
         :param num_buffers:
         :return:
         """
