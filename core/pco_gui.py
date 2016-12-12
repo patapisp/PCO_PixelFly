@@ -239,12 +239,16 @@ class CameraWidget(QtGui.QWidget):
         self.log_scale = QtGui.QCheckBox("Log scale")
         self.log_scale.stateChanged.connect(self.log_scale_callback)
 
+        # checkbox enabling log scale
+        self.fft_display = QtGui.QCheckBox("FFT Display")
+
         self.widget_layout.addWidget(self.gw, 0, 0, 6, 8)
         self.widget_layout.addWidget(self.gw_crosscut, 6, 3, 2, 6)
         self.widget_layout.addItem(self.controls_layout, 1, 8)
         self.widget_layout.addItem(self.indicators_layout, 7, 0, 2, 6)
         self.indicators_layout.addWidget(reset_btn, 2, 6, 1, 1)
         self.indicators_layout.addWidget(self.log_scale, 2, 7, 1, 1)
+        self.indicators_layout.addWidget(self.fft_display, 2, 8, 1,1)
         # Indicator showing maxvalue of image being displayed
         self.max_indicator_lab = QtGui.QLabel('Max value')
         font = QtGui.QFont("Calibri", 18)
@@ -330,6 +334,7 @@ class CameraWidget(QtGui.QWidget):
         self.statusbar.addPermanentWidget(self.mouse_pos_lab)
         self.statusbar.addPermanentWidget(self.mouse_pos)
         MainWindow.setStatusBar(self.statusbar)
+
 
     def log_scale_callback(self):
         if self.log_scale.isChecked():
@@ -496,7 +501,7 @@ class CameraWidget(QtGui.QWidget):
         self.save_settings_return()
         QtGui.QApplication.closeAllWindows()
         QtGui.QApplication.instance().quit()
-        
+
         return
 
     def onActivatedUnits(self, text):
@@ -522,7 +527,7 @@ class CameraWidget(QtGui.QWidget):
             else:
                 self.t = int(text)
                 t = self.t
-                u = self.u             
+                u = self.u
             self.camera.exposure_time(t, u)
         except ValueError:
             pass
@@ -550,7 +555,7 @@ class CameraWidget(QtGui.QWidget):
             self.ConnectBtn.setStyleSheet("background-color: green")
             self.connection_status.setText('Connected')
             try:
-                t, u = self.camera.get_exposure_time()                
+                t, u = self.camera.get_exposure_time()
                 self.exp_time_in.setText(str(t))
                 index = self.time_units.findText(u)
                 if index >= 0:
@@ -656,6 +661,10 @@ class CameraWidget(QtGui.QWidget):
         try:
             # get newest frame from queue. Transpose it so that is fits the coordinates convention
             im = self.camera.q.get().T
+
+            #display abs(fft) of image
+            if self.fft_display.isChecked():
+                im = abs(np.fft.fftshift(np.fft.fft2(im)))
             # check for log scale display
             if self.log_scale.isChecked():
                 self.im = np.log(im)
@@ -683,13 +692,19 @@ class CameraWidget(QtGui.QWidget):
             if 0 <= self.x <= 1392 and 0 <= self.y <= 1040:
                 val = im[self.x, self.y]
                 self.mouse_pos.setText('%i , %i : %.1f'%(self.x, self.y, val))
-            
+
             # update image. Don't know if this is necessary..
             self.image.update()
         except Empty:
             pass
         # Run single shot timer again
-        QtCore.QTimer.singleShot(20, self.update_image)
+        # Try to see if adjusting the time will help with the GUI freezing
+        # time < 60 ms -> 20 / time > 60 ms -> time/3
+        uptime = 20
+        if self.time_units.currentText() == 'ms' and self.t > 60:
+            uptime = int(self.t/3)
+
+        QtCore.QTimer.singleShot(uptime, self.update_image)
 
     def record_callback(self):
         """
@@ -783,10 +798,3 @@ if __name__ == '__main__':
     pco_ui.create_gui(window)
     window.show()
     sys.exit(app.exec_())
-
-
-
-
-
-
-
